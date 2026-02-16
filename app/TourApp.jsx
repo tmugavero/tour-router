@@ -58,23 +58,23 @@ function MapViz({data}){
 function ScoreBar({value,max=100,color="#f59e0b"}){return(<div style={{width:"100%",height:4,background:"rgba(255,255,255,0.08)",borderRadius:2}}><div style={{width:`${(value/max)*100}%`,height:"100%",background:color,borderRadius:2,transition:"width 0.6s ease"}}/></div>)}
 
 function MarketCard({market,index}){const[open,setOpen]=useState(false);return(
-  <div onClick={()=>setOpen(!open)} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:10,padding:"14px 16px",cursor:"pointer",transition:"all 0.2s",borderColor:open?"rgba(245,158,11,0.3)":undefined}}>
-    <div style={{display:"flex",alignItems:"center",gap:12}}>
-      <div style={{width:32,height:32,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:market.has_artist_history?"rgba(245,158,11,0.15)":"rgba(6,182,212,0.15)",color:market.has_artist_history?"#f59e0b":"#06b6d4",fontSize:13,fontWeight:800,flexShrink:0}}>{index+1}</div>
-      <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700,fontSize:14,color:"#e2e8f0"}}>{market.city}, {market.state}</div><div style={{fontSize:11,color:"#64748b",marginTop:2}}>{market.has_artist_history?`${market.historical?.prior_visits||0} visits`:"New market"}</div></div>
-      <div style={{textAlign:"right",flexShrink:0}}><div style={{fontSize:18,fontWeight:800,color:"#f59e0b",fontVariantNumeric:"tabular-nums"}}>{market.market_score.toFixed(1)}</div><div style={{fontSize:10,color:"#64748b",textTransform:"uppercase",letterSpacing:1}}>score</div></div>
+  <div onClick={()=>setOpen(!open)} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:8,padding:"12px 14px",cursor:"pointer",transition:"all 0.2s",borderColor:open?"rgba(245,158,11,0.3)":undefined}}>
+    <div style={{display:"flex",alignItems:"center",gap:10}}>
+      <div style={{width:28,height:28,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:market.has_artist_history?"rgba(245,158,11,0.15)":"rgba(6,182,212,0.15)",color:market.has_artist_history?"#f59e0b":"#06b6d4",fontSize:12,fontWeight:800,flexShrink:0}}>{index+1}</div>
+      <div style={{flex:1,minWidth:0}}><div style={{fontWeight:700,fontSize:13,color:"#e2e8f0"}}>{market.city}, {market.state}</div><div style={{fontSize:10,color:"#64748b",marginTop:1}}>{market.has_artist_history?`${market.historical?.prior_visits||0} visits`:"New"}</div></div>
+      <div style={{textAlign:"right",flexShrink:0}}><div style={{fontSize:16,fontWeight:800,color:"#f59e0b",fontVariantNumeric:"tabular-nums"}}>{market.market_score.toFixed(1)}</div><div style={{fontSize:9,color:"#64748b",textTransform:"uppercase",letterSpacing:.5}}>score</div></div>
     </div>
-    <div style={{display:"flex",gap:16,marginTop:10}}>
-      {[{label:"Fill",value:pct(market.predicted_fill_probability),pct:market.predicted_fill_probability},{label:"Capacity",value:fmtN(market.predicted_capacity),pct:Math.min(market.predicted_capacity/20000,1)},{label:"Revenue",value:fmt(market.predicted_net_revenue),pct:Math.min(market.predicted_net_revenue/1500000,1)}].map(s=>(
-        <div key={s.label} style={{flex:1}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span style={{fontSize:10,color:"#64748b",textTransform:"uppercase",letterSpacing:.5}}>{s.label}</span><span style={{fontSize:11,fontWeight:600,color:"#cbd5e1",fontVariantNumeric:"tabular-nums"}}>{s.value}</span></div><ScoreBar value={s.pct*100}/></div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginTop:10}}>
+      {[{label:"Fill",value:pct(market.predicted_fill_probability),pct:market.predicted_fill_probability},{label:"Cap",value:fmtN(market.predicted_capacity),pct:Math.min(market.predicted_capacity/20000,1)},{label:"Rev",value:fmt(market.predicted_net_revenue),pct:Math.min(market.predicted_net_revenue/1500000,1)}].map(s=>(
+        <div key={s.label} style={{flex:1}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:2,alignItems:"baseline"}}><span style={{fontSize:9,color:"#64748b",textTransform:"uppercase",letterSpacing:.3}}>{s.label}</span><span style={{fontSize:10,fontWeight:600,color:"#cbd5e1",fontVariantNumeric:"tabular-nums"}}>{s.value}</span></div><ScoreBar value={s.pct*100}/></div>
       ))}
     </div>
-    {open&&(<div style={{marginTop:12,paddingTop:12,borderTop:"1px solid rgba(255,255,255,0.06)",fontSize:12,color:"#94a3b8",lineHeight:1.7}}><div style={{fontStyle:"italic"}}>{market.reasoning}</div>
-      {market.has_artist_history&&market.historical&&(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"4px 16px",fontSize:11,color:"#64748b",marginTop:6}}><span>Prior fill: <b style={{color:"#cbd5e1"}}>{pct(market.historical.prior_avg_fill_rate||0)}</b></span><span>Last cap: <b style={{color:"#cbd5e1"}}>{fmtN(market.historical.prior_last_capacity||0)}</b></span></div>)}</div>)}
+    {open&&(<div style={{marginTop:10,paddingTop:10,borderTop:"1px solid rgba(255,255,255,0.06)",fontSize:11,color:"#94a3b8",lineHeight:1.6}}><div style={{fontStyle:"italic"}}>{market.reasoning}</div>
+      {market.has_artist_history&&market.historical&&(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"3px 12px",fontSize:10,color:"#64748b",marginTop:5}}><span>Prior: <b style={{color:"#cbd5e1"}}>{pct(market.historical.prior_avg_fill_rate||0)}</b></span><span>Last: <b style={{color:"#cbd5e1"}}>{fmtN(market.historical.prior_last_capacity||0)}</b></span></div>)}</div>)}
   </div>)}
 
 export default function App(){
-  const[data,setData]=useState(PRECOMPUTED.laufey);const[activeDemo,setActiveDemo]=useState("laufey");const[searchQuery,setSearchQuery]=useState("");const[loading,setLoading]=useState(false);const[error,setError]=useState(null);const[view,setView]=useState("map");
+  const[data,setData]=useState(PRECOMPUTED.laufey);const[activeDemo,setActiveDemo]=useState("laufey");const[searchQuery,setSearchQuery]=useState("");const[loading,setLoading]=useState(false);const[error,setError]=useState(null);const[view,setView]=useState("map");const[sidebarOpen,setSidebarOpen]=useState(false);
   const ap=data.artist_profile;const phase=ap.growth_phase;
 
   const handleSearch=async()=>{const q=searchQuery.trim();if(!q)return;setLoading(true);setError(null);setActiveDemo(null);
@@ -85,67 +85,73 @@ export default function App(){
   return(
     <div style={{minHeight:"100vh",background:"#0a0a0f",color:"#e2e8f0",fontFamily:"'DM Sans','Helvetica Neue',sans-serif"}}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;0,9..40,800;1,9..40,400&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}} @media(max-width:768px){.hide-mobile{display:none!important}}`}</style>
 
       {/* Header */}
-      <div style={{padding:"20px 28px",borderBottom:"1px solid rgba(255,255,255,0.06)",display:"flex",alignItems:"center",gap:24,flexWrap:"wrap"}}>
-        <div style={{flexShrink:0}}><div style={{fontSize:11,fontWeight:700,letterSpacing:3,color:"#f59e0b",textTransform:"uppercase"}}>Wilder AI</div><div style={{fontSize:18,fontWeight:800,color:"#f8fafc"}}>Tour Recommendation Engine</div></div>
-        <div style={{flex:1,maxWidth:480,display:"flex",gap:8}}>
-          <input value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")handleSearch()}} placeholder="Search any artist..." style={{flex:1,padding:"10px 16px",borderRadius:8,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.05)",color:"#f8fafc",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
-          <button onClick={handleSearch} disabled={loading||!searchQuery.trim()} style={{padding:"10px 20px",borderRadius:8,border:"none",cursor:loading?"wait":"pointer",background:loading?"rgba(245,158,11,0.3)":"#f59e0b",color:"#0a0a0f",fontSize:13,fontWeight:700,fontFamily:"inherit",opacity:!searchQuery.trim()?0.4:1}}>
-            {loading?<span style={{display:"flex",alignItems:"center",gap:6}}><span style={{display:"inline-block",width:14,height:14,border:"2px solid rgba(0,0,0,0.2)",borderTopColor:"#0a0a0f",borderRadius:"50%",animation:"spin .8s linear infinite"}}/>Analyzing...</span>:"Recommend"}
+      <div style={{padding:"16px",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
+          <button onClick={()=>setSidebarOpen(!sidebarOpen)} style={{padding:"8px 12px",borderRadius:6,border:"1px solid rgba(255,255,255,0.1)",background:"rgba(255,255,255,0.05)",color:"#f59e0b",fontSize:20,cursor:"pointer",lineHeight:1}}>☰</button>
+          <div style={{flex:1,minWidth:0}}><div style={{fontSize:10,fontWeight:700,letterSpacing:2,color:"#f59e0b",textTransform:"uppercase"}}>Wilder AI</div><div style={{fontSize:16,fontWeight:800,color:"#f8fafc",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>Tour Recommendation</div></div>
+        </div>
+        <div style={{display:"flex",gap:8,marginBottom:8}}>
+          <input value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} onKeyDown={e=>{if(e.key==="Enter")handleSearch()}} placeholder="Search any artist..." style={{flex:1,padding:"10px 14px",borderRadius:8,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.05)",color:"#f8fafc",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
+          <button onClick={handleSearch} disabled={loading||!searchQuery.trim()} style={{padding:"10px 16px",borderRadius:8,border:"none",cursor:loading?"wait":"pointer",background:loading?"rgba(245,158,11,0.3)":"#f59e0b",color:"#0a0a0f",fontSize:13,fontWeight:700,fontFamily:"inherit",opacity:!searchQuery.trim()?0.4:1,whiteSpace:"nowrap"}}>
+            {loading?<span style={{display:"inline-block",width:14,height:14,border:"2px solid rgba(0,0,0,0.2)",borderTopColor:"#0a0a0f",borderRadius:"50%",animation:"spin .8s linear infinite"}}/>:"Go"}
           </button>
         </div>
-        <div style={{padding:"6px 12px",borderRadius:6,fontSize:11,fontWeight:600,background:"rgba(245,158,11,0.1)",color:"#f59e0b",border:"1px solid rgba(245,158,11,0.2)",flexShrink:0}}>{data.model_metadata.n_training_shows} shows · {data.model_metadata.markets_in_model} markets</div>
+        <div style={{padding:"6px 10px",borderRadius:6,fontSize:10,fontWeight:600,background:"rgba(245,158,11,0.1)",color:"#f59e0b",border:"1px solid rgba(245,158,11,0.2)",display:"inline-block"}}>{data.model_metadata.n_training_shows} shows · {data.model_metadata.markets_in_model} markets</div>
       </div>
 
-      <div style={{display:"flex",gap:0,minHeight:"calc(100vh - 80px)"}}>
+      <div style={{display:"flex",gap:0,minHeight:"calc(100vh - 140px)",position:"relative"}}>
         {/* Sidebar */}
-        <div style={{width:240,borderRight:"1px solid rgba(255,255,255,0.06)",padding:"16px 12px",flexShrink:0}}>
-          <div style={{fontSize:10,fontWeight:700,letterSpacing:2,color:"#64748b",textTransform:"uppercase",marginBottom:10}}>Demo Artists</div>
+        <div style={{width:sidebarOpen?240:0,borderRight:sidebarOpen?"1px solid rgba(255,255,255,0.06)":"none",padding:sidebarOpen?"16px 12px":0,flexShrink:0,transition:"all 0.3s",overflow:sidebarOpen?"visible":"hidden",position:"absolute",left:0,top:0,bottom:0,background:"#0a0a0f",zIndex:100}}>
+          <div style={{fontSize:9,fontWeight:700,letterSpacing:1.5,color:"#64748b",textTransform:"uppercase",marginBottom:8}}>Demo Artists</div>
           {DEMOS.map(s=>(
-            <div key={s.key} onClick={()=>{setActiveDemo(s.key);setData(PRECOMPUTED[s.key]);setSearchQuery("");setError(null)}} style={{padding:"10px 12px",borderRadius:8,cursor:"pointer",marginBottom:4,background:activeDemo===s.key?"rgba(245,158,11,0.08)":"transparent",border:`1px solid ${activeDemo===s.key?"rgba(245,158,11,0.2)":"transparent"}`,transition:"all 0.15s"}}>
-              <div style={{display:"flex",alignItems:"center",gap:10}}><span style={{fontSize:18}}>{s.icon}</span><div><div style={{fontSize:13,fontWeight:700,color:activeDemo===s.key?"#f59e0b":"#e2e8f0"}}>{s.label}</div><div style={{fontSize:10,color:"#64748b"}}>{s.sub}</div></div></div>
+            <div key={s.key} onClick={()=>{setActiveDemo(s.key);setData(PRECOMPUTED[s.key]);setSearchQuery("");setError(null);setSidebarOpen(false)}} style={{padding:"8px 10px",borderRadius:6,cursor:"pointer",marginBottom:4,background:activeDemo===s.key?"rgba(245,158,11,0.08)":"transparent",border:`1px solid ${activeDemo===s.key?"rgba(245,158,11,0.2)":"transparent"}`,transition:"all 0.15s"}}>
+              <div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:16}}>{s.icon}</span><div><div style={{fontSize:12,fontWeight:700,color:activeDemo===s.key?"#f59e0b":"#e2e8f0"}}>{s.label}</div><div style={{fontSize:9,color:"#64748b"}}>{s.sub}</div></div></div>
             </div>))}
 
-          <div style={{marginTop:20,padding:"14px 12px",background:"rgba(255,255,255,0.02)",borderRadius:8,border:"1px solid rgba(255,255,255,0.05)"}}>
-            <div style={{fontSize:10,fontWeight:700,letterSpacing:2,color:"#64748b",textTransform:"uppercase",marginBottom:8}}>Artist Profile</div>
-            <div style={{fontSize:16,fontWeight:800,color:"#f8fafc",marginBottom:6}}>{data.artist}</div>
-            <div style={{display:"inline-block",padding:"3px 10px",borderRadius:20,fontSize:11,fontWeight:700,background:`${PC[phase]||"#6b7280"}20`,color:PC[phase]||"#6b7280",border:`1px solid ${PC[phase]||"#6b7280"}40`,marginBottom:8}}>{PL[phase]||phase}</div>
-            <div style={{fontSize:11,color:"#94a3b8",lineHeight:2}}>
+          <div style={{marginTop:16,padding:"10px",background:"rgba(255,255,255,0.02)",borderRadius:6,border:"1px solid rgba(255,255,255,0.05)"}}>
+            <div style={{fontSize:9,fontWeight:700,letterSpacing:1.5,color:"#64748b",textTransform:"uppercase",marginBottom:6}}>Artist Profile</div>
+            <div style={{fontSize:14,fontWeight:800,color:"#f8fafc",marginBottom:4}}>{data.artist}</div>
+            <div style={{display:"inline-block",padding:"2px 8px",borderRadius:12,fontSize:10,fontWeight:700,background:`${PC[phase]||"#6b7280"}20`,color:PC[phase]||"#6b7280",border:`1px solid ${PC[phase]||"#6b7280"}40`,marginBottom:6}}>{PL[phase]||phase}</div>
+            <div style={{fontSize:10,color:"#94a3b8",lineHeight:1.8}}>
               <div>Source: <b style={{color:"#cbd5e1"}}>{data.profile_source?.replace(/_/g," ")}</b></div>
-              <div>Capacity: <b style={{color:"#cbd5e1"}}>{fmtN(ap.current_avg_capacity)}</b></div>
-              <div>Guarantee: <b style={{color:"#cbd5e1"}}>{fmt(ap.current_avg_guarantee)}</b></div>
-              <div>Fill Rate: <b style={{color:"#cbd5e1"}}>{pct(ap.avg_fill_rate)}</b></div>
+              <div>Cap: <b style={{color:"#cbd5e1"}}>{fmtN(ap.current_avg_capacity)}</b></div>
+              <div>Guar: <b style={{color:"#cbd5e1"}}>{fmt(ap.current_avg_guarantee)}</b></div>
+              <div>Fill: <b style={{color:"#cbd5e1"}}>{pct(ap.avg_fill_rate)}</b></div>
               {ap.total_headline_shows>0&&<div>Shows: <b style={{color:"#cbd5e1"}}>{ap.total_headline_shows}</b></div>}
             </div>
-            {data.ai_summary&&(<div style={{marginTop:10,padding:"8px 10px",background:"rgba(6,182,212,0.06)",borderRadius:6,border:"1px solid rgba(6,182,212,0.15)",fontSize:11,color:"#94a3b8",lineHeight:1.6}}><div style={{fontSize:10,fontWeight:700,color:"#06b6d4",marginBottom:4}}>AI ANALYSIS</div>{data.ai_summary}</div>)}
-            {data.comparable_artists?.length>0&&(<div style={{marginTop:8,fontSize:11,color:"#64748b"}}><span style={{fontWeight:600}}>Similar: </span>{data.comparable_artists.join(", ")}</div>)}
+            {data.ai_summary&&(<div style={{marginTop:8,padding:"6px 8px",background:"rgba(6,182,212,0.06)",borderRadius:4,border:"1px solid rgba(6,182,212,0.15)",fontSize:10,color:"#94a3b8",lineHeight:1.5}}><div style={{fontSize:9,fontWeight:700,color:"#06b6d4",marginBottom:3}}>AI ANALYSIS</div>{data.ai_summary}</div>)}
+            {data.comparable_artists?.length>0&&(<div style={{marginTop:6,fontSize:10,color:"#64748b"}}><span style={{fontWeight:600}}>Similar: </span>{data.comparable_artists.join(", ")}</div>)}
           </div>
         </div>
 
+        {/* Backdrop */}
+        {sidebarOpen&&<div onClick={()=>setSidebarOpen(false)} style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.5)",zIndex:99}}/>}
+
         {/* Main */}
-        <div style={{flex:1,padding:"20px 28px",overflow:"auto"}}>
+        <div style={{flex:1,padding:"16px",overflow:"auto",width:"100%"}}>
           {error&&(<div style={{padding:"12px 16px",background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.3)",borderRadius:8,color:"#fca5a5",fontSize:13,marginBottom:16}}>{error}</div>)}
 
-          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
-            {[{label:"Total Revenue",value:fmt(data.financial_summary.total_predicted_net),sub:"predicted net"},{label:"Avg Capacity",value:fmtN(data.financial_summary.avg_predicted_capacity),sub:"per market"},{label:"Avg Fill",value:pct(data.financial_summary.avg_predicted_fill_prob),sub:"probability"},{label:"Route",value:`${fmtN(data.route.total_distance_miles)} mi`,sub:`${data.route.routed_markets.length} stops`}].map(s=>(
-              <div key={s.label} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:10,padding:"16px 18px"}}><div style={{fontSize:10,fontWeight:700,letterSpacing:1.5,color:"#64748b",textTransform:"uppercase"}}>{s.label}</div><div style={{fontSize:24,fontWeight:800,color:"#f8fafc",marginTop:4,fontVariantNumeric:"tabular-nums",fontFamily:"'JetBrains Mono',monospace"}}>{s.value}</div><div style={{fontSize:11,color:"#475569",marginTop:2}}>{s.sub}</div></div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:10,marginBottom:16}}>
+            {[{label:"Revenue",value:fmt(data.financial_summary.total_predicted_net),sub:"predicted"},{label:"Capacity",value:fmtN(data.financial_summary.avg_predicted_capacity),sub:"avg"},{label:"Fill",value:pct(data.financial_summary.avg_predicted_fill_prob),sub:"avg"},{label:"Route",value:`${fmtN(data.route.total_distance_miles)} mi`,sub:`${data.route.routed_markets.length} stops`}].map(s=>(
+              <div key={s.label} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:8,padding:"12px 14px"}}><div style={{fontSize:9,fontWeight:700,letterSpacing:1,color:"#64748b",textTransform:"uppercase"}}>{s.label}</div><div style={{fontSize:18,fontWeight:800,color:"#f8fafc",marginTop:2,fontVariantNumeric:"tabular-nums",fontFamily:"'JetBrains Mono',monospace"}}>{s.value}</div><div style={{fontSize:10,color:"#475569",marginTop:1}}>{s.sub}</div></div>
             ))}
           </div>
 
-          <div style={{display:"flex",gap:4,marginBottom:16}}>
-            {[{k:"map",l:"Route Map"},{k:"markets",l:"Market Cards"},{k:"route",l:"Route Order"}].map(t=>(<button key={t.k} onClick={()=>setView(t.k)} style={{padding:"8px 18px",borderRadius:6,border:"1px solid",borderColor:view===t.k?"rgba(245,158,11,0.3)":"rgba(255,255,255,0.08)",background:view===t.k?"rgba(245,158,11,0.08)":"transparent",color:view===t.k?"#f59e0b":"#94a3b8",fontSize:12,fontWeight:600,cursor:"pointer"}}>{t.l}</button>))}
+          <div style={{display:"flex",gap:4,marginBottom:12,overflowX:"auto"}}>
+            {[{k:"map",l:"Map"},{k:"markets",l:"Markets"},{k:"route",l:"Route"}].map(t=>(<button key={t.k} onClick={()=>setView(t.k)} style={{padding:"8px 14px",borderRadius:6,border:"1px solid",borderColor:view===t.k?"rgba(245,158,11,0.3)":"rgba(255,255,255,0.08)",background:view===t.k?"rgba(245,158,11,0.08)":"transparent",color:view===t.k?"#f59e0b":"#94a3b8",fontSize:11,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>{t.l}</button>))}
           </div>
 
-          {view==="map"&&(<div style={{background:"rgba(255,255,255,0.02)",borderRadius:12,border:"1px solid rgba(255,255,255,0.06)",overflow:"hidden"}}><MapViz data={data}/><div style={{padding:"12px 18px",borderTop:"1px solid rgba(255,255,255,0.06)",display:"flex",gap:20,fontSize:11,color:"#64748b"}}><span><span style={{display:"inline-block",width:10,height:10,borderRadius:"50%",background:"#f59e0b",marginRight:6}}/>Known</span><span><span style={{display:"inline-block",width:10,height:10,borderRadius:"50%",background:"#06b6d4",marginRight:6}}/>New market</span><span style={{marginLeft:"auto"}}>Size = capacity · Opacity = confidence</span></div></div>)}
+          {view==="map"&&(<div style={{background:"rgba(255,255,255,0.02)",borderRadius:10,border:"1px solid rgba(255,255,255,0.06)",overflow:"hidden"}}><MapViz data={data}/><div style={{padding:"10px 14px",borderTop:"1px solid rgba(255,255,255,0.06)",display:"flex",gap:12,flexWrap:"wrap",fontSize:10,color:"#64748b"}}><span><span style={{display:"inline-block",width:8,height:8,borderRadius:"50%",background:"#f59e0b",marginRight:4}}/>Known</span><span><span style={{display:"inline-block",width:8,height:8,borderRadius:"50%",background:"#06b6d4",marginRight:4}}/>New</span></div></div>)}
 
-          {view==="markets"&&(<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>{data.markets.map((m,i)=><MarketCard key={m.market} market={m} index={i}/>)}</div>)}
+          {view==="markets"&&(<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:10}}>{data.markets.map((m,i)=><MarketCard key={m.market} market={m} index={i}/>)}</div>)}
 
-          {view==="route"&&(<div style={{background:"rgba(255,255,255,0.02)",borderRadius:12,border:"1px solid rgba(255,255,255,0.06)",padding:20}}><div style={{fontSize:13,fontWeight:700,color:"#f59e0b",marginBottom:16}}>Optimized Route · {data.route.total_distance_miles.toLocaleString()} miles</div>
-            {data.route.routed_markets.map((mkt,i)=>{const m=data.markets.find(x=>x.market===mkt);return(<div key={mkt} style={{display:"flex",alignItems:"center",gap:14,padding:"10px 0",borderBottom:i<data.route.routed_markets.length-1?"1px solid rgba(255,255,255,0.04)":"none"}}><div style={{width:28,height:28,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(245,158,11,0.1)",color:"#f59e0b",fontSize:12,fontWeight:800,flexShrink:0}}>{i+1}</div><div style={{flex:1}}><span style={{fontWeight:700,color:"#e2e8f0",fontSize:14}}>{mkt}</span>{m&&<span style={{color:"#64748b",fontSize:12,marginLeft:12}}>Score {m.market_score} · {fmtN(m.predicted_capacity)} cap · {fmt(m.predicted_net_revenue)}</span>}</div>{i<data.route.routed_markets.length-1&&<div style={{color:"#334155",fontSize:18}}>→</div>}</div>)})}</div>)}
+          {view==="route"&&(<div style={{background:"rgba(255,255,255,0.02)",borderRadius:10,border:"1px solid rgba(255,255,255,0.06)",padding:"14px 16px"}}><div style={{fontSize:12,fontWeight:700,color:"#f59e0b",marginBottom:12}}>Optimized Route · {data.route.total_distance_miles.toLocaleString()} mi</div>
+            {data.route.routed_markets.map((mkt,i)=>{const m=data.markets.find(x=>x.market===mkt);return(<div key={mkt} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:i<data.route.routed_markets.length-1?"1px solid rgba(255,255,255,0.04)":"none"}}><div style={{width:24,height:24,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(245,158,11,0.1)",color:"#f59e0b",fontSize:11,fontWeight:800,flexShrink:0}}>{i+1}</div><div style={{flex:1,minWidth:0}}><div style={{fontWeight:700,color:"#e2e8f0",fontSize:13}}>{mkt}</div>{m&&<div style={{color:"#64748b",fontSize:10,marginTop:1}}>Score {m.market_score} · {fmtN(m.predicted_capacity)} · {fmt(m.predicted_net_revenue)}</div>}</div>{i<data.route.routed_markets.length-1&&<div style={{color:"#334155",fontSize:16,flexShrink:0}}>→</div>}</div>)})}</div>)}
 
-          <div style={{marginTop:20,padding:"16px 20px",background:"rgba(255,255,255,0.02)",borderRadius:12,border:"1px solid rgba(255,255,255,0.06)"}}><div style={{fontSize:10,fontWeight:700,letterSpacing:2,color:"#64748b",textTransform:"uppercase",marginBottom:12}}>Model Feature Importance</div><div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{Object.entries(data.model_metadata.top_features).map(([k,v])=>(<div key={k} style={{padding:"5px 10px",borderRadius:6,fontSize:11,fontFamily:"'JetBrains Mono',monospace",background:`rgba(245,158,11,${.05+v*.5})`,color:"#f59e0b",border:"1px solid rgba(245,158,11,0.15)"}}>{k} <b>{(v*100).toFixed(1)}%</b></div>))}</div></div>
+          <div style={{marginTop:16,padding:"12px 14px",background:"rgba(255,255,255,0.02)",borderRadius:10,border:"1px solid rgba(255,255,255,0.06)"}}><div style={{fontSize:9,fontWeight:700,letterSpacing:1.5,color:"#64748b",textTransform:"uppercase",marginBottom:10}}>Model Features</div><div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{Object.entries(data.model_metadata.top_features).map(([k,v])=>(<div key={k} style={{padding:"4px 8px",borderRadius:5,fontSize:10,fontFamily:"'JetBrains Mono',monospace",background:`rgba(245,158,11,${.05+v*.5})`,color:"#f59e0b",border:"1px solid rgba(245,158,11,0.15)"}}>{k.replace(/_/g," ")} <b>{(v*100).toFixed(0)}%</b></div>))}</div></div>
         </div>
       </div>
     </div>);
