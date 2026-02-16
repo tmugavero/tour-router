@@ -1,12 +1,23 @@
 {
   "permissions": {
     "allow": [
-      "Bash(git init:*)",
-      "Bash(git remote add:*)",
-      "Bash(git branch:*)",
+      "Read",
+      "Write",
+      "Edit",
+      "LS",
+      "Glob",
+      "Grep",
+      "Bash",
+      "WebFetch",
+      "WebSearch"
+    ],
+    "deny": [],
+    "ask": [
+      "Bash(rm:*)",
       "Bash(git add:*)",
-      "Bash(git reset:*)",
-      "Bash(git rm:*)"
+      "Bash(git:push:*)",
+      "Bash(git:reset:*)",
+      "Bash(git:rebase:*)"
     ]
   }
 }
