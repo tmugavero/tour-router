@@ -7,9 +7,9 @@ Usage:
 This script:
   1. Loads all settlement CSVs from the specified directory
   2. Builds the FeatureStore (artist profiles, market profiles, training matrix)
-  3. Trains the three-head ML model (fill, revenue, capacity)
+  3. Trains the four-head ML model (fill, revenue, capacity, guarantee)
   4. Runs predictions for all known artists
-  5. Exports market data + pre-computed scenarios as JSON for the frontend
+  5. Exports market data + pre-computed scenarios + seasonality as JSON for the frontend
 """
 
 import argparse
@@ -54,8 +54,43 @@ def export_market_data(store):
             'an': round(float(row['market_avg_artist_net'])),
             'at': round(float(row['market_avg_ticket_price']), 1),
             't': int(row['market_size_tier_num']),
+            # New fields
+            'nt': round(float(row.get('market_avg_n_tiers', 0)), 1),
+            'mt': round(float(row.get('market_avg_max_ticket_price', 0)), 1),
+            'vn': round(float(row.get('market_pct_vs_net', 0)), 2),
+            'sp': round(float(row.get('market_avg_split_point', 0))),
+            'ps': round(float(row.get('market_peak_season_fill', 0)), 3),
+            'os': round(float(row.get('market_off_season_fill', 0)), 3),
+            'ap': round(float(row.get('market_avg_artist_pct', 0)), 2),
+            'p21': round(float(row.get('market_pct_21_plus', 0)), 2),
         })
     return markets
+
+
+def export_artist_seasonality(store):
+    """Export per-artist monthly averages for seasonality charts."""
+    seasonality = {}
+    all_shows = store.all_shows
+    for artist, group in all_shows.groupby('artist'):
+        headline = group[group['is_headline'] == 1]
+        if len(headline) < 3:
+            continue
+        monthly = []
+        for month in range(1, 13):
+            month_shows = headline[headline['month'] == month]
+            if len(month_shows) == 0:
+                monthly.append({'m': month, 'n': 0, 'f': 0, 'g': 0, 'r': 0})
+            else:
+                monthly.append({
+                    'm': month,
+                    'n': int(len(month_shows)),
+                    'f': round(float(month_shows['fill_rate'].mean()), 3),
+                    'g': round(float(month_shows['guarantee'].mean())),
+                    'r': round(float(month_shows['artist_net'].mean())),
+                })
+        slug = artist.lower().replace(' ', '_').replace("'", '')
+        seasonality[slug] = monthly
+    return seasonality
 
 
 def main():
@@ -82,6 +117,10 @@ def main():
     market_data = export_market_data(store)
     print(f"\nExported {len(market_data)} US markets for client-side engine")
 
+    # Export seasonality
+    seasonality = export_artist_seasonality(store)
+    print(f"Exported seasonality data for {len(seasonality)} artists")
+
     # Generate pre-computed scenarios for all known artists
     scenarios = {}
     artist_names = store.artist_profiles['artist'].unique()
@@ -89,7 +128,7 @@ def main():
 
     for name in artist_names:
         slug = name.lower().replace(' ', '_').replace("'", '')
-        print(f"  → {name}...", end=' ')
+        print(f"  -> {name}...", end=' ')
         try:
             result = recommend_tour_markets(
                 artist_name=name,
@@ -97,8 +136,10 @@ def main():
                 optimize_for='balanced',
             )
             scenarios[slug] = result
+            income = result['financial_summary']['total_predicted_income']
             net = result['financial_summary']['total_predicted_net']
-            print(f"${net:,.0f} predicted net across {args.n_cities} markets")
+            merch = result['financial_summary']['total_predicted_merch']
+            print(f"income={income:,.0f} (net={net:,.0f} + merch={merch:,.0f})")
         except Exception as e:
             print(f"ERROR: {e}")
 
@@ -106,13 +147,18 @@ def main():
     output = {
         'markets': market_data,
         'scenarios': scenarios,
+        'seasonality': seasonality,
         'model_metadata': {
             'n_training_shows': len(store.training_matrix),
             'n_training_artists': len(artist_names),
             'n_markets': len(market_data),
+            'n_features': len(model.feature_importances),
             'fill_auc': round(model.metrics.fill_rate_auc or 0, 3),
             'revenue_r2': round(model.metrics.revenue_r2 or 0, 3),
             'revenue_mae': round(model.metrics.revenue_mae or 0, 0),
+            'capacity_r2': round(model.metrics.capacity_r2 or 0, 3),
+            'guarantee_r2': round(model.metrics.guarantee_r2 or 0, 3),
+            'guarantee_mae': round(model.metrics.guarantee_mae or 0, 0),
         }
     }
 
@@ -120,8 +166,8 @@ def main():
     with open(args.output, 'w') as f:
         json.dump(output, f, cls=NumpyEncoder, indent=2)
 
-    print(f"\n✅ Exported to {args.output}")
-    print(f"   {len(market_data)} markets, {len(scenarios)} artist scenarios")
+    print(f"\nExported to {args.output}")
+    print(f"   {len(market_data)} markets, {len(scenarios)} artist scenarios, {len(seasonality)} seasonality profiles")
     print(f"\nTo update the frontend, copy the 'markets' array into TourApp.jsx MARKETS constant")
     print(f"and the 'scenarios' object into the PRECOMPUTED constant.")
 

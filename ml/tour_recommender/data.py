@@ -38,7 +38,8 @@ def parse_venue_location(venue_str: str) -> dict:
 
 def parse_scaling_list(scaling_str: str) -> dict:
     if pd.isna(scaling_str):
-        return {'avg_ticket_price': 0.0, 'n_tiers': 0}
+        return {'avg_ticket_price': 0.0, 'n_tiers': 0, 'max_ticket_price': 0.0,
+                'min_ticket_price': 0.0, 'price_spread': 0.0, 'total_scaling_capacity': 0}
     prices = [float(p.replace(',', ''))
               for p in re.findall(r'PRICE:\s*(?:CAD\s*)?\$\s*([\d,.]+)', str(scaling_str))]
     qtys = [int(q) for q in re.findall(r'QTY:\s*(\d+)', str(scaling_str))]
@@ -49,7 +50,46 @@ def parse_scaling_list(scaling_str: str) -> dict:
         avg_price = float(np.mean(prices))
     else:
         avg_price = 0.0
-    return {'avg_ticket_price': avg_price, 'n_tiers': len(prices)}
+    return {
+        'avg_ticket_price': avg_price,
+        'n_tiers': len(prices),
+        'max_ticket_price': max(prices) if prices else 0.0,
+        'min_ticket_price': min(p for p in prices if p > 0) if any(p > 0 for p in prices) else 0.0,
+        'price_spread': (max(prices) - min(p for p in prices if p > 0)) if len([p for p in prices if p > 0]) > 1 else 0.0,
+        'total_scaling_capacity': total_qty,
+    }
+
+
+def parse_merchandise(merch_str) -> dict:
+    defaults = {'merch_soft_pct': 0.0, 'merch_hard_pct': 0.0,
+                'merch_seller_artist': 0, 'merch_seller_venue': 0, 'has_merch_terms': 0}
+    if pd.isna(merch_str) or not str(merch_str).strip():
+        return defaults
+    ms = str(merch_str)
+    soft = re.findall(r'(\d+(?:\.\d+)?)\s*%?\s*[/-]?\s*\d*\s*%?\s*[Ss]oft', ms)
+    if not soft:
+        soft = re.findall(r'(\d+(?:\.\d+)?)\s*%\s*(?:ALL|all)', ms)
+    hard = re.findall(r'(\d+(?:\.\d+)?)\s*%?\s*[/-]?\s*\d*\s*%?\s*(?:[Hh]ard|[Rr]ec)', ms)
+    seller_artist = bool(re.search(r'[Aa]rtist\s*[Ss]ell|[Ss]eller:\s*ARTIST', ms))
+    seller_venue = bool(re.search(r'[Vv]enue\s*[Ss]ell|[Ss]eller:\s*VENUE|FESTIVAL\s*SELL', ms))
+    has_100_artist = bool(re.search(r'100%\s*(?:all|ALL).*(?:[Aa]rtist|to\s+Artist)', ms))
+    return {
+        'merch_soft_pct': float(soft[0]) / 100 if soft else (1.0 if has_100_artist else 0.0),
+        'merch_hard_pct': float(hard[0]) / 100 if hard else (1.0 if has_100_artist else 0.0),
+        'merch_seller_artist': 1 if (seller_artist or has_100_artist) else 0,
+        'merch_seller_venue': 1 if seller_venue else 0,
+        'has_merch_terms': 1 if (soft or hard or has_100_artist or seller_artist or seller_venue) else 0,
+    }
+
+
+def parse_age_restriction(age_str) -> int:
+    if pd.isna(age_str):
+        return 0
+    s = str(age_str)
+    if 'All Ages' in s or 'AA' in s:
+        return 0
+    m = re.search(r'(\d+)\+', s)
+    return int(m.group(1)) if m else 0
 
 
 def load_settlement_csv(filepath: str) -> pd.DataFrame:
@@ -62,16 +102,78 @@ def load_settlement_csv(filepath: str) -> pd.DataFrame:
     df = pd.concat([df, loc], axis=1)
     sc = pd.DataFrame(df['Scaling List'].apply(parse_scaling_list).tolist())
     df = pd.concat([df, sc], axis=1)
+
+    # Core numerics
     df['guarantee'] = pd.to_numeric(df['Guarantee'], errors='coerce').fillna(0)
     df['capacity'] = pd.to_numeric(df['Show Capacity'], errors='coerce').fillna(0)
     df['sold'] = pd.to_numeric(df['Settlement Sold Tix'], errors='coerce').fillna(0)
     df['artist_net'] = pd.to_numeric(df['Settlement Artist Net'], errors='coerce').fillna(0)
-    df['fill_rate'] = np.where(df['capacity'] > 0, df['sold'] / df['capacity'], 0)
-    df['fill_rate'] = df['fill_rate'].clip(0, 2.0)
+
+    # Fill rate with fallback to reported attendance %
+    reported_fill = pd.to_numeric(
+        df['Final % Of Paid Attendance'].astype(str).str.rstrip('%'),
+        errors='coerce').fillna(0) / 100.0
+    df['fill_rate'] = np.where(
+        (df['sold'] > 0) & (df['capacity'] > 0),
+        df['sold'] / df['capacity'],
+        np.where(reported_fill > 0, reported_fill, 0))
+    df['fill_rate'] = df['fill_rate'].clip(0, 1.5)
+
     df['revenue_per_head'] = np.where(df['sold'] > 0, df['artist_net'] / df['sold'], 0)
+
+    # Billing type
     df['is_headline'] = df['Billing'].str.contains('Headline', na=False).astype(int)
     df['is_festival'] = df['Billing'].str.contains('Festival', na=False).astype(int)
     df['is_support'] = df['Billing'].str.contains('Support|Special Guest', na=False).astype(int)
+
+    # Deal structure
+    deal_col = 'Deal Type' if 'Deal Type' in df.columns else None
+    if deal_col:
+        df['deal_type_raw'] = df[deal_col].fillna('Unknown')
+        df['deal_flat'] = df['deal_type_raw'].str.contains('Flat Guarantee', na=False).astype(int)
+        df['deal_vs_net'] = df['deal_type_raw'].str.contains('Vs.*Net', na=False).astype(int)
+        df['deal_plus'] = df['deal_type_raw'].str.contains('Plus', na=False).astype(int)
+        df['deal_door'] = df['deal_type_raw'].str.contains('Door', na=False).astype(int)
+        df['has_upside'] = (df['deal_flat'] == 0).astype(int)
+    else:
+        for col in ['deal_type_raw', 'deal_flat', 'deal_vs_net', 'deal_plus', 'deal_door', 'has_upside']:
+            df[col] = 0
+        df['deal_type_raw'] = 'Unknown'
+
+    # Artist % and split point
+    if 'Artist %' in df.columns:
+        df['artist_pct'] = pd.to_numeric(
+            df['Artist %'].astype(str).str.rstrip('%'), errors='coerce').fillna(0) / 100.0
+    else:
+        df['artist_pct'] = 0.0
+    if 'Split Point' in df.columns:
+        df['split_point'] = pd.to_numeric(df['Split Point'], errors='coerce').fillna(0)
+    else:
+        df['split_point'] = 0.0
+
+    # Merchandise
+    if 'Merchandise' in df.columns:
+        merch = pd.DataFrame(df['Merchandise'].apply(parse_merchandise).tolist())
+        df = pd.concat([df, merch], axis=1)
+    else:
+        for col in ['merch_soft_pct', 'merch_hard_pct', 'merch_seller_artist', 'merch_seller_venue', 'has_merch_terms']:
+            df[col] = 0
+
+    # Age restriction
+    if 'Age Restriction' in df.columns:
+        df['min_age'] = df['Age Restriction'].apply(parse_age_restriction)
+    else:
+        df['min_age'] = 0
+    df['is_21_plus'] = (df['min_age'] >= 21).astype(int)
+    df['is_18_plus'] = (df['min_age'] >= 18).astype(int)
+
+    # Seasonality
+    df['month'] = df['date'].dt.month.fillna(0).astype(int)
+    df['quarter'] = df['date'].dt.quarter.fillna(0).astype(int)
+    df['day_of_week'] = df['date'].dt.dayofweek.fillna(0).astype(int)
+    df['is_weekend'] = df['day_of_week'].isin([4, 5, 6]).astype(int)
+    df['is_peak_season'] = df['month'].isin([9, 10, 11, 3, 4, 5]).astype(int)
+
     df['market'] = df['city'].fillna('Unknown') + ', ' + df['state'].fillna('??')
     df['artist'] = df['Artist'].iloc[0] if 'Artist' in df.columns else Path(filepath).stem
     return df
@@ -145,6 +247,24 @@ def build_artist_profiles(all_shows: pd.DataFrame) -> pd.DataFrame:
             'months_active': max((group['date'].max() - group['date'].min()).days / 30, 1),
             'headline_ratio': len(headline) / max(len(group), 1),
             'sellout_rate': (headline['fill_rate'] >= 0.95).mean() if len(headline) > 0 else 0,
+            # Deal structure
+            'avg_artist_pct': recent['artist_pct'].mean() if 'artist_pct' in recent else 0,
+            'pct_vs_net_deals': (recent['deal_vs_net'] == 1).mean() if 'deal_vs_net' in recent else 0,
+            'pct_flat_deals': (recent['deal_flat'] == 1).mean() if 'deal_flat' in recent else 0,
+            'upside_capture_rate': (recent['artist_net'] > recent['guarantee']).mean() if len(recent) > 0 else 0,
+            'avg_split_point': recent.loc[recent['split_point'] > 0, 'split_point'].mean() if (recent['split_point'] > 0).any() else 0,
+            # Merchandise
+            'avg_merch_soft_pct': recent['merch_soft_pct'].mean() if 'merch_soft_pct' in recent else 0,
+            'merch_seller_artist_rate': recent['merch_seller_artist'].mean() if 'merch_seller_artist' in recent else 0,
+            # Ticket pricing
+            'avg_n_tiers': recent['n_tiers'].mean() if 'n_tiers' in recent else 0,
+            'avg_max_ticket_price': recent['max_ticket_price'].mean() if 'max_ticket_price' in recent else 0,
+            'avg_price_spread': recent['price_spread'].mean() if 'price_spread' in recent else 0,
+            # Seasonality
+            'peak_season_fill_rate': headline[headline['is_peak_season'] == 1]['fill_rate'].mean() if (headline['is_peak_season'] == 1).any() else 0,
+            'off_season_fill_rate': headline[headline['is_peak_season'] == 0]['fill_rate'].mean() if (headline['is_peak_season'] == 0).any() else 0,
+            # Revenue
+            'avg_revenue_per_head': recent.loc[recent['revenue_per_head'] > 0, 'revenue_per_head'].mean() if (recent['revenue_per_head'] > 0).any() else 0,
         })
     return pd.DataFrame(profiles)
 
@@ -177,6 +297,18 @@ def build_market_profiles(all_shows: pd.DataFrame) -> pd.DataFrame:
             'market_avg_ticket_price': group['avg_ticket_price'].mean(),
             'market_avg_artist_net': headline['artist_net'].mean() if len(headline) > 0 else 0,
             'market_size_tier_num': tier_num,
+            # Deal structure
+            'market_pct_vs_net': headline['has_upside'].mean() if len(headline) > 0 and 'has_upside' in headline else 0,
+            'market_avg_artist_pct': headline['artist_pct'].mean() if len(headline) > 0 and 'artist_pct' in headline else 0,
+            'market_avg_split_point': headline.loc[headline['split_point'] > 0, 'split_point'].mean() if len(headline) > 0 and 'split_point' in headline and (headline['split_point'] > 0).any() else 0,
+            # Ticket pricing
+            'market_avg_n_tiers': group['n_tiers'].mean() if 'n_tiers' in group else 0,
+            'market_avg_max_ticket_price': group['max_ticket_price'].mean() if 'max_ticket_price' in group else 0,
+            # Seasonality
+            'market_peak_season_fill': headline[headline['is_peak_season'] == 1]['fill_rate'].mean() if len(headline) > 0 and 'is_peak_season' in headline and (headline['is_peak_season'] == 1).any() else 0,
+            'market_off_season_fill': headline[headline['is_peak_season'] == 0]['fill_rate'].mean() if len(headline) > 0 and 'is_peak_season' in headline and (headline['is_peak_season'] == 0).any() else 0,
+            # Age
+            'market_pct_21_plus': (group['is_21_plus'] == 1).mean() if 'is_21_plus' in group else 0,
         })
     return pd.DataFrame(profiles)
 
@@ -245,6 +377,7 @@ def build_training_matrix(all_shows: pd.DataFrame) -> pd.DataFrame:
             prior_h_market = prior_market[prior_market['is_headline'] == 1]
 
             rows.append({
+                # Artist features
                 'a_growth_phase': phase_num,
                 'a_avg_capacity': recent['capacity'].mean(),
                 'a_avg_guarantee': avg_guar,
@@ -256,7 +389,9 @@ def build_training_matrix(all_shows: pd.DataFrame) -> pd.DataFrame:
                 'a_n_markets': prior['market'].nunique(),
                 'a_months_active': max((prior['date'].max() - prior['date'].min()).days / 30, 0.1),
                 'a_sellout_rate': (prior_headline['fill_rate'] >= 0.95).mean(),
+                'a_avg_revenue_per_head': recent.loc[recent['revenue_per_head'] > 0, 'revenue_per_head'].mean() if (recent['revenue_per_head'] > 0).any() else 0,
 
+                # Artist-market features
                 'am_prior_visits': len(prior_market),
                 'am_prior_headline_visits': len(prior_h_market),
                 'am_prior_avg_fill': prior_market['fill_rate'].mean() if len(prior_market) > 0 else 0,
@@ -267,10 +402,29 @@ def build_training_matrix(all_shows: pd.DataFrame) -> pd.DataFrame:
                 'am_prior_sellout_rate': (prior_market['fill_rate'] >= 0.95).mean() if len(prior_market) > 0 else 0,
                 'am_has_history': 1 if len(prior_market) > 0 else 0,
 
+                # Deal features (from this show)
+                'deal_is_flat': show.get('deal_flat', 0),
+                'deal_is_vs_net': show.get('deal_vs_net', 0),
+                'deal_artist_pct': show.get('artist_pct', 0),
+                'deal_split_point_ratio': show['split_point'] / max(show['guarantee'], 1) if show.get('split_point', 0) > 0 else 0,
+                'deal_has_upside': show.get('has_upside', 0),
+
+                # Show context features
+                'show_month': show.get('month', 0),
+                'show_quarter': show.get('quarter', 0),
+                'show_is_weekend': show.get('is_weekend', 0),
+                'show_is_peak_season': show.get('is_peak_season', 0),
+                'show_n_tiers': show.get('n_tiers', 0),
+                'show_avg_ticket_price': show.get('avg_ticket_price', 0),
+                'show_max_ticket_price': show.get('max_ticket_price', 0),
+                'show_is_21_plus': show.get('is_21_plus', 0),
+
+                # Metadata
                 'market': show['market'],
                 'artist': artist,
                 'date': show['date'],
 
+                # Targets
                 'target_fill_rate': show['fill_rate'],
                 'target_artist_net': show['artist_net'],
                 'target_capacity': show['capacity'],
@@ -302,7 +456,8 @@ class FeatureStore:
         training_matrix = build_training_matrix(all_shows)
 
         # Merge market features into training matrix
-        market_cols = [c for c in market_profiles.columns if c.startswith('market_') or c in ('n_artists_played', 'n_total_shows')]
+        market_cols = [c for c in market_profiles.columns
+                       if c.startswith('market_') or c in ('n_artists_played', 'n_total_shows')]
         training_matrix = training_matrix.merge(
             market_profiles[['market'] + market_cols], on='market', how='left')
 
