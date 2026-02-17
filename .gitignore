@@ -3,3 +3,13 @@ node_modules
 .vercel
 .env
 .env.local
+
+# ML data files (large, not for version control)
+ml/export.json
+ml/data/
+data/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
