@@ -133,7 +133,7 @@ def main():
     parser = argparse.ArgumentParser(description='Train tour recommendation model and export for frontend')
     parser.add_argument('--csv-dir', required=True, help='Directory containing settlement CSV files')
     parser.add_argument('--output', default='./export.json', help='Output JSON path')
-    parser.add_argument('--n-cities', type=int, default=12, help='Number of cities to recommend per artist')
+    parser.add_argument('--n-cities', type=int, default=None, help='Number of cities per artist (default: auto from phase)')
     args = parser.parse_args()
 
     # Find all CSVs
@@ -166,13 +166,20 @@ def main():
     artist_names = store.artist_profiles['artist'].unique()
     print(f"\nGenerating recommendations for {len(artist_names)} known artists:")
 
+    phase_n_cities = {'emerging': 8, 'club': 10, 'club_to_theater': 12, 'theater': 14, 'arena': 18}
+
     for name in artist_names:
         slug = name.lower().replace(' ', '_').replace("'", '')
         print(f"  -> {name}...", end=' ')
         try:
+            # Use per-artist phase-based city count unless overridden
+            artist_phase = store.artist_profiles.loc[
+                store.artist_profiles['artist'] == name, 'growth_phase'
+            ].iloc[0] if name in store.artist_profiles['artist'].values else 'club'
+            n_cities = args.n_cities or phase_n_cities.get(artist_phase, 12)
             result = recommend_tour_markets(
                 artist_name=name,
-                n_cities=args.n_cities,
+                n_cities=n_cities,
                 optimize_for='balanced',
             )
             scenarios[slug] = result

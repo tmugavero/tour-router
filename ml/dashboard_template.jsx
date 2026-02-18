@@ -19,10 +19,11 @@ const fmtN=n=>n>=1e6?`${(n/1e6).toFixed(1)}M`:n>=1e3?`${(n/1e3).toFixed(1)}K`:`$
 const pct=n=>`${Math.round(n*100)}%`;
 const MONTHS=["","Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
-function scoreMarkets(profile,nCities=12){
+function scoreMarkets(profile){
   const cap=profile.estimated_capacity||1e3,guar=profile.estimated_guarantee||1e4;
   const phase=guar>2e5?4:guar>5e4?3:guar>1e4?2:guar>2e3?1:0;
   const phaseLabel=["emerging","club","club_to_theater","theater","arena"][phase];
+  const nCities=[8,10,12,14,18][phase];
   const estTicket=guar>2e5?85:guar>5e4?55:guar>1e4?35:guar>2e3?25:18;
   const estMaxTicket=estTicket*1.6;
   const merchPerHead=[3,5,8,12,18][phase];
@@ -72,7 +73,7 @@ function scoreMarkets(profile,nCities=12){
   const avgGuar=scored.reduce((s,m)=>s+m.recommended_guarantee,0)/Math.max(scored.length,1);
   const avgTicket=scored.reduce((s,m)=>s+(m.recommended_avg_ticket_price||0),0)/Math.max(scored.length,1);
   const dealCounts={};scored.forEach(m=>{dealCounts[m.recommended_deal_type]=(dealCounts[m.recommended_deal_type]||0)+1});
-  return{artist:profile.name||"Unknown",profile_source:"ai_analysis",
+  return{artist:profile.artist_name||profile.name||"Unknown",profile_source:"ai_analysis",
     artist_profile:{growth_phase:phaseLabel,current_avg_capacity:cap,current_avg_guarantee:guar,avg_fill_rate:0.7,guarantee_cagr:0,total_headline_shows:0,n_markets_played:0,avg_ticket_price:estTicket,avg_merch_soft_pct:0.85},
     recommendation_config:{optimize_for:"balanced",region:"us",n_requested:nCities},
     markets:scored,route:{order:mkts.map((_,i)=>i),routed_markets:mkts,total_distance_miles:Math.round(totalD),start_city:mkts[0]},
