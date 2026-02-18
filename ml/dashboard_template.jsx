@@ -286,6 +286,15 @@ export default function App(){
         <div style={{flex:1,padding:"16px",overflow:"auto",width:"100%"}}>
           {error&&(<div style={{padding:"12px 16px",background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.3)",borderRadius:8,color:"#fca5a5",fontSize:17,marginBottom:16}}>{error}</div>)}
 
+          <div style={{marginBottom:14,display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+            <div style={{fontSize:26,fontWeight:800,color:"#f8fafc",lineHeight:1}}>{data.artist}</div>
+            <div style={{display:"inline-flex",alignItems:"center",gap:6}}>
+              <span style={{padding:"3px 10px",borderRadius:12,fontSize:12,fontWeight:700,background:`${PC[phase]||"#6b7280"}20`,color:PC[phase]||"#6b7280",border:`1px solid ${PC[phase]||"#6b7280"}40`}}>{PL[phase]||phase}</span>
+              {data.profile_source==="settlement_data"&&<span style={{padding:"3px 10px",borderRadius:12,fontSize:12,fontWeight:600,background:"rgba(16,185,129,0.1)",color:"#10b981",border:"1px solid rgba(16,185,129,0.2)"}}>Settlement Data</span>}
+              {data.profile_source==="ai_analysis"&&<span style={{padding:"3px 10px",borderRadius:12,fontSize:12,fontWeight:600,background:"rgba(6,182,212,0.1)",color:"#06b6d4",border:"1px solid rgba(6,182,212,0.2)"}}>AI Analysis</span>}
+            </div>
+          </div>
+
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:10,marginBottom:16}}>
             {[{label:"Total Income",value:fmt(fs.total_predicted_income||fs.total_predicted_net),sub:"net + merch"},{label:"Avg Guarantee",value:fmt(fs.avg_recommended_guarantee||ap.current_avg_guarantee||0),sub:"recommended"},{label:"Avg Capacity",value:fmtN(fs.avg_predicted_capacity),sub:"predicted"},{label:"Avg Fill",value:pct(fs.avg_predicted_fill_prob),sub:"probability"},{label:"Avg Ticket",value:`$${(fs.avg_ticket_price||ap.avg_ticket_price||0).toFixed(0)}`,sub:"recommended"},{label:"Route",value:`${fmtN(data.route.total_distance_miles)} mi`,sub:`${data.route.routed_markets.length} stops`}].map(s=>(
               <div key={s.label} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:8,padding:"12px 14px"}}><div style={{fontSize:12,fontWeight:700,letterSpacing:1,color:"#64748b",textTransform:"uppercase"}}>{s.label}</div><div style={{fontSize:23,fontWeight:800,color:"#f8fafc",marginTop:2,fontVariantNumeric:"tabular-nums",fontFamily:"'JetBrains Mono',monospace"}}>{s.value}</div><div style={{fontSize:13,color:"#475569",marginTop:1}}>{s.sub}</div></div>
