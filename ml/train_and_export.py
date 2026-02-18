@@ -93,6 +93,42 @@ def export_artist_seasonality(store):
     return seasonality
 
 
+def export_aggregate_seasonality(store):
+    """Export aggregate monthly averages by growth phase, for unknown-artist fallback."""
+    all_shows = store.all_shows
+    artist_profiles = store.artist_profiles
+
+    # Use the growth_phase already computed in artist_profiles
+    phase_map = {}
+    for _, ap in artist_profiles.iterrows():
+        phase = ap.get('growth_phase', 'club') or 'club'
+        phase_map.setdefault(phase, []).append(ap['artist'])
+
+    agg_seasonality = {}
+    for phase, artists in phase_map.items():
+        phase_shows = all_shows[
+            all_shows['artist'].isin(artists) & (all_shows['is_headline'] == 1)
+        ]
+        if len(phase_shows) < 3:
+            continue
+        monthly = []
+        for month in range(1, 13):
+            ms = phase_shows[phase_shows['month'] == month]
+            if len(ms) == 0:
+                monthly.append({'m': month, 'n': 0, 'f': 0, 'g': 0, 'r': 0})
+            else:
+                monthly.append({
+                    'm': month,
+                    'n': int(len(ms)),
+                    'f': round(float(ms['fill_rate'].mean()), 3),
+                    'g': round(float(ms['guarantee'].mean())),
+                    'r': round(float(ms['artist_net'].mean())),
+                })
+        agg_seasonality[phase] = monthly
+
+    return agg_seasonality
+
+
 def main():
     parser = argparse.ArgumentParser(description='Train tour recommendation model and export for frontend')
     parser.add_argument('--csv-dir', required=True, help='Directory containing settlement CSV files')
@@ -121,6 +157,10 @@ def main():
     seasonality = export_artist_seasonality(store)
     print(f"Exported seasonality data for {len(seasonality)} artists")
 
+    # Export aggregate seasonality by growth phase (fallback for unknown artists)
+    agg_seasonality = export_aggregate_seasonality(store)
+    print(f"Exported aggregate seasonality for {len(agg_seasonality)} growth phases")
+
     # Generate pre-computed scenarios for all known artists
     scenarios = {}
     artist_names = store.artist_profiles['artist'].unique()
@@ -148,6 +188,7 @@ def main():
         'markets': market_data,
         'scenarios': scenarios,
         'seasonality': seasonality,
+        'aggregate_seasonality': agg_seasonality,
         'model_metadata': {
             'n_training_shows': len(store.training_matrix),
             'n_training_artists': len(artist_names),
@@ -167,7 +208,7 @@ def main():
         json.dump(output, f, cls=NumpyEncoder, indent=2)
 
     print(f"\nExported to {args.output}")
-    print(f"   {len(market_data)} markets, {len(scenarios)} artist scenarios, {len(seasonality)} seasonality profiles")
+    print(f"   {len(market_data)} markets, {len(scenarios)} artist scenarios, {len(seasonality)} seasonality profiles, {len(agg_seasonality)} phase aggregates")
     print(f"\nTo update the frontend, copy the 'markets' array into TourApp.jsx MARKETS constant")
     print(f"and the 'scenarios' object into the PRECOMPUTED constant.")
 

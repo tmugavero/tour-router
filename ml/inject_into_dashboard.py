@@ -16,6 +16,7 @@ def main():
     markets = data['markets']
     scenarios = data['scenarios']
     seasonality = data.get('seasonality', {})
+    agg_seasonality = data.get('aggregate_seasonality', {})
     metadata = data['model_metadata']
 
     # Build COORDS from model
@@ -47,6 +48,7 @@ def main():
     precomputed_json = json.dumps(scenarios, separators=(',', ':'))
     demos_json = json.dumps(demos, separators=(',', ':'), ensure_ascii=False)
     seasonality_json = json.dumps(seasonality, separators=(',', ':'))
+    agg_seasonality_json = json.dumps(agg_seasonality, separators=(',', ':'))
 
     n_shows = metadata['n_training_shows']
     n_mkts = metadata['n_markets']
@@ -63,6 +65,7 @@ def main():
     jsx = jsx.replace('__PRECOMPUTED_JSON__', precomputed_json)
     jsx = jsx.replace('__DEMOS_JSON__', demos_json)
     jsx = jsx.replace('__SEASONALITY_JSON__', seasonality_json)
+    jsx = jsx.replace('__AGG_SEASONALITY_JSON__', agg_seasonality_json)
     jsx = jsx.replace('__N_SHOWS__', str(n_shows))
     jsx = jsx.replace('__N_MARKETS__', str(n_mkts))
     jsx = jsx.replace('__N_FEATURES__', str(n_feats))
@@ -75,7 +78,7 @@ def main():
 
     print(f"Generated TourApp.jsx ({len(jsx):,} chars)")
     print(f"  {len(markets)} markets, {len(scenarios)} scenarios, {len(seasonality)} seasonality profiles")
-    print(f"  {len(demos)} demo artists")
+    print(f"  {len(demos)} demo artists, {len(agg_seasonality)} phase aggregates")
 
 
 if __name__ == '__main__':

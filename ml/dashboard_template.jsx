@@ -10,6 +10,8 @@ const DEMOS=__DEMOS_JSON__;
 
 const SEASONALITY=__SEASONALITY_JSON__;
 
+const AGG_SEASONALITY=__AGG_SEASONALITY_JSON__;
+
 const PC={"arena":"#f59e0b","theater":"#8b5cf6","club_to_theater":"#06b6d4","club":"#10b981","emerging":"#6b7280"};
 const PL={"arena":"Arena","theater":"Theater","club_to_theater":"Club \u2192 Theater","club":"Club","emerging":"Emerging"};
 const fmt=n=>n>=1e6?`$${(n/1e6).toFixed(1)}M`:n>=1e3?`$${(n/1e3).toFixed(0)}K`:`$${Math.round(n)}`;
@@ -60,9 +62,9 @@ function scoreMarkets(profile,nCities=12){
   }).filter(m=>m.market_score>10).sort((a,b)=>b.market_score-a.market_score).slice(0,nCities);
   scored.forEach((m,i)=>m.rank=i+1);
   const getC=m=>COORDS[m]||[39.8,-98.6];
-  const dist=(a,b)=>Math.sqrt((a[0]-b[0])**2+(a[1]-b[1])**2)*69;
+  const dist=(a,b)=>{const R=3959,la=a[0]*Math.PI/180,lb=b[0]*Math.PI/180,dLa=(b[0]-a[0])*Math.PI/180,dLo=(b[1]-a[1])*Math.PI/180;const x=Math.sin(dLa/2)**2+Math.cos(la)*Math.cos(lb)*Math.sin(dLo/2)**2;return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x))};
   const mkts=scored.map(m=>m.market);
-  if(mkts.length>2){let imp=true;while(imp){imp=false;for(let i=1;i<mkts.length-1;i++)for(let j=i+1;j<mkts.length;j++){const dO=dist(getC(mkts[i-1]),getC(mkts[i]))+dist(getC(mkts[j]),getC(mkts[(j+1)%mkts.length]));const dN=dist(getC(mkts[i-1]),getC(mkts[j]))+dist(getC(mkts[i]),getC(mkts[(j+1)%mkts.length]));if(dN<dO){const s=mkts.slice(i,j+1).reverse();mkts.splice(i,j-i+1,...s);imp=true}}}}
+  if(mkts.length>2){const visited=new Set([0]),nn=[0];while(nn.length<mkts.length){let best=-1,bestD=Infinity;for(let j=0;j<mkts.length;j++){if(visited.has(j))continue;const d=dist(getC(mkts[nn[nn.length-1]]),getC(mkts[j]));if(d<bestD){bestD=d;best=j}}nn.push(best);visited.add(best)}const nnMkts=nn.map(i=>mkts[i]);mkts.splice(0,mkts.length,...nnMkts);let imp=true;while(imp){imp=false;for(let i=1;i<mkts.length-1;i++)for(let j=i+1;j<mkts.length;j++){const dO=dist(getC(mkts[i-1]),getC(mkts[i]))+dist(getC(mkts[j]),getC(mkts[(j+1)%mkts.length]));const dN=dist(getC(mkts[i-1]),getC(mkts[j]))+dist(getC(mkts[i]),getC(mkts[(j+1)%mkts.length]));if(dN<dO){const s=mkts.slice(i,j+1).reverse();mkts.splice(i,j-i+1,...s);imp=true}}}}
   let totalD=0;for(let i=0;i<mkts.length-1;i++)totalD+=dist(getC(mkts[i]),getC(mkts[i+1]));
   const totalNet=scored.reduce((s,m)=>s+(m.profitability?.artist_net||m.predicted_net_revenue),0);
   const totalMerch=scored.reduce((s,m)=>s+(m.profitability?.estimated_merch_revenue||0),0);
@@ -177,15 +179,21 @@ function ProfitabilityView({data}){
 
 function TimingView({data,artistKey}){
   const slug=artistKey||data.artist?.toLowerCase().replace(/\s+/g,"_").replace(/'/g,"");
-  const seasonal=SEASONALITY[slug];
+  const artistSeasonal=SEASONALITY[slug];
+  const phase=data.artist_profile?.growth_phase||"club";
+  const aggSeasonal=AGG_SEASONALITY[phase];
+  const seasonal=artistSeasonal||(aggSeasonal?.some(m=>m.n>0)?aggSeasonal:null);
+  const isAggregate=!artistSeasonal&&!!seasonal;
   if(!seasonal||seasonal.length===0)return(<div style={{padding:20,textAlign:"center",color:"#64748b",fontSize:12}}>No seasonality data available for this artist.</div>);
   const maxFill=Math.max(...seasonal.filter(m=>m.n>0).map(m=>m.f),0.01);
   const maxRev=Math.max(...seasonal.filter(m=>m.n>0).map(m=>m.r),1);
   const bestMonths=data.financial_summary?.best_tour_months||["Mar","Apr","May","Sep","Oct","Nov"];
+  const phaseLabel={"arena":"Arena","theater":"Theater","club_to_theater":"Club \u2192 Theater","club":"Club","emerging":"Emerging"}[phase]||phase;
   return(<div style={{display:"flex",flexDirection:"column",gap:16}}>
+    {isAggregate&&<div style={{background:"rgba(245,158,11,0.06)",borderRadius:8,border:"1px solid rgba(245,158,11,0.2)",padding:"8px 12px",fontSize:11,color:"#f59e0b"}}>Showing typical timing for <strong>{phaseLabel}</strong> artists — search this artist in your settlements to see their personal data.</div>}
     <div style={{background:"rgba(255,255,255,0.02)",borderRadius:10,border:"1px solid rgba(255,255,255,0.06)",padding:"14px 16px"}}>
       <div style={{fontSize:12,fontWeight:700,color:"#f59e0b",marginBottom:4}}>Monthly Fill Rate</div>
-      <div style={{fontSize:10,color:"#64748b",marginBottom:12}}>Based on historical headline shows</div>
+      <div style={{fontSize:10,color:"#64748b",marginBottom:12}}>{isAggregate?`Aggregate across ${phaseLabel} artists`:"Based on historical headline shows"}</div>
       <div style={{display:"flex",alignItems:"flex-end",gap:4,height:120}}>
         {seasonal.map((m,i)=>{const isBest=bestMonths.includes(MONTHS[m.m]);return(
           <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
